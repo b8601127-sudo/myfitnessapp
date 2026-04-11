@@ -38,8 +38,7 @@ input{font-family:'Nunito',sans-serif}
 (function(){
   try{
     var c=document.createElement('canvas');c.width=512;c.height=512;
-    var x=c.getContext('2d');
-    var g=x.createLinearGradient(0,0,512,512);
+    var x=c.getContext('2d'),g=x.createLinearGradient(0,0,512,512);
     g.addColorStop(0,'#4263EB');g.addColorStop(1,'#3451C5');
     x.fillStyle=g;x.beginPath();x.rect(0,0,512,512);x.fill();
     x.font='270px serif';x.textAlign='center';x.textBaseline='middle';x.fillText('💪',256,290);
@@ -60,15 +59,14 @@ const C={
   pri:'#4263EB',pri2:'#748FFC',priL:'#E8EDFF',
   mus:'#E03131',bod:'#B8CDE0',
   txt:'#1C2340',sub:'#6B7AA1',bdr:'#DDE5F5',
-  ok:'#2F9E44',okL:'#D3F9D8',
-  warn:'#E8590C',
+  ok:'#2F9E44',okL:'#D3F9D8',warn:'#E8590C',
   sh:'0 2px 16px rgba(59,91,219,0.08)',
 };
 const PRESETS={
   upper:['側平舉','飛鳥','肩推','胸推','夾胸','下拉','三頭下壓','二頭彎舉','划船'],
   lower:['深蹲','硬舉','腿推','腿伸展'],
 };
-const DR=90,DREPS=10,DS=4,SK='fitness_v7';
+const DR=90,DREPS=10,DS=4,SK='fitness_v8';
 const p2=n=>String(n).padStart(2,'0');
 const fT=s=>`${p2(Math.floor(s/60))}:${p2(s%60)}`;
 function tKey(){const d=new Date();return`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;}
@@ -121,51 +119,6 @@ function MI({name,size=60}){
   return(<svg viewBox="0 0 60 92" width={size} height={size} style={{display:'block',flexShrink:0}}>{ic[name]??<><Body/></>}</svg>);
 }
 
-/* ── App Store Modal ─────────────────────────────────────────────── */
-function ASModal({onClose}){
-  return(
-    <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',zIndex:4000,
-      display:'flex',alignItems:'flex-end',justifyContent:'center',
-      backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)'}}>
-      <div style={{background:C.card,borderRadius:'20px 20px 0 0',padding:'24px 20px',
-        paddingBottom:`max(env(safe-area-inset-bottom),24px)`,
-        width:'100%',maxWidth:680,maxHeight:'85vh',overflowY:'auto'}}>
-        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
-          <span style={{fontWeight:800,fontSize:18,color:C.txt}}>📱 上架 App Store</span>
-          <button onClick={onClose} style={{background:C.bg,border:'none',width:32,height:32,borderRadius:16,fontSize:18,color:C.sub,cursor:'pointer'}}>×</button>
-        </div>
-        <div style={{background:C.okL,border:'1px solid #A9E34B',borderRadius:12,padding:'12px 14px',marginBottom:16}}>
-          <div style={{fontWeight:800,color:C.ok,fontSize:13,marginBottom:4}}>✅ 推薦：加到主畫面（免費、立即可用）</div>
-          <div style={{color:'#2B8A3E',fontSize:12,lineHeight:1.8,fontWeight:600}}>
-            1. 用 iPhone <strong>Safari</strong> 開啟本頁面<br/>
-            2. 點底部 <strong>⬆ 分享</strong> 按鈕<br/>
-            3. 選擇「<strong>加入主畫面</strong>」<br/>
-            4. 全螢幕啟動，資料永久保存
-          </div>
-        </div>
-        <div style={{fontWeight:800,color:C.txt,fontSize:14,marginBottom:12}}>正式上架 App Store</div>
-        {[['1','需要設備','Mac + Xcode（免費下載）\nApple Developer 帳號（$99/年）'],
-          ['2','安裝工具','npm install -g @capacitor/cli\nnpx cap init "健身日誌" com.you.fitness\nnpm install @capacitor/ios && npx cap add ios'],
-          ['3','加入頁面','建立 www/ 資料夾\n將此 index.html 放入'],
-          ['4','開啟 Xcode','npx cap sync\nnpx cap open ios'],
-          ['5','提交審核','設定 Bundle ID 和 Team\nProduct → Archive → Distribute App'],
-        ].map(([n,t,d])=>(
-          <div key={n} style={{display:'flex',gap:12,marginBottom:14}}>
-            <div style={{width:28,height:28,background:C.pri,borderRadius:14,flexShrink:0,
-              display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontWeight:800,fontSize:13}}>{n}</div>
-            <div style={{flex:1}}>
-              <div style={{fontWeight:800,fontSize:13,color:C.txt,marginBottom:3}}>{t}</div>
-              <div style={{fontSize:11.5,color:C.sub,lineHeight:1.7,whiteSpace:'pre-line',
-                fontFamily:'monospace',background:C.bg,padding:'8px 10px',borderRadius:8}}>{d}</div>
-            </div>
-          </div>
-        ))}
-        <button onClick={onClose} style={{width:'100%',background:C.pri,border:'none',color:'#fff',height:50,borderRadius:12,fontWeight:800,fontSize:16,cursor:'pointer',marginTop:8}}>了解了</button>
-      </div>
-    </div>
-  );
-}
-
 /* ── Rest Timer ──────────────────────────────────────────────────── */
 function RestTimer({seconds,onDone,onSkip}){
   const[rem,setRem]=useState(seconds);
@@ -213,31 +166,24 @@ function RestTimer({seconds,onDone,onSkip}){
 }
 
 /* ── Stepper ─────────────────────────────────────────────────────── */
-// isMobile: smaller buttons + input; desktop: larger
 function Stepper({label,value,onChange,step=1,unit='',color=C.txt,mob=true}){
-  const bs=mob?24:30; // button size
-  const iw=mob?38:50; // input width
-  const fs=mob?20:24; // font size
+  const bs=mob?24:30,iw=mob?38:50,fs=mob?20:24;
   const dec=()=>onChange(Math.round(Math.max(0,parseFloat(value)-step)*100)/100);
   const inc=()=>onChange(Math.round((parseFloat(value)+step)*100)/100);
   const Btn=({fn,ch})=>(
-    <button onClick={fn} style={{
-      width:bs,height:bs,background:C.bg,border:`1.5px solid ${C.bdr}`,
-      color:C.sub,cursor:'pointer',fontSize:mob?15:18,borderRadius:mob?5:7,
-      flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center',
-      fontWeight:800,padding:0,lineHeight:1}}>{ch}</button>
+    <button onClick={fn} style={{width:bs,height:bs,background:C.bg,border:`1.5px solid ${C.bdr}`,
+      color:C.sub,cursor:'pointer',fontSize:mob?15:18,borderRadius:mob?5:7,flexShrink:0,
+      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,padding:0,lineHeight:1}}>{ch}</button>
   );
   return(
     <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,minWidth:0}}>
-      <span style={{color:C.sub,fontSize:mob?9:10,fontWeight:800,letterSpacing:1,
-        textTransform:'uppercase',whiteSpace:'nowrap'}}>{label}</span>
+      <span style={{color:C.sub,fontSize:mob?9:10,fontWeight:800,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>{label}</span>
       <div style={{display:'flex',alignItems:'center',gap:mob?1:3}}>
         <Btn fn={dec} ch="−"/>
         <input type="number" value={value} onChange={e=>onChange(e.target.value)}
           style={{width:iw,textAlign:'center',background:'transparent',border:'none',
-            borderBottom:`2px solid ${C.bdr}`,color,
-            fontFamily:"'Bebas Neue',sans-serif",fontSize:fs,outline:'none',
-            padding:'0',minWidth:0,display:'block'}}/>
+            borderBottom:`2px solid ${C.bdr}`,color,fontFamily:"'Bebas Neue',sans-serif",
+            fontSize:fs,outline:'none',padding:'0',minWidth:0,display:'block'}}/>
         <Btn fn={inc} ch="+"/>
       </div>
       {unit&&<span style={{color:C.bdr,fontSize:mob?9:10,fontWeight:700}}>{unit}</span>}
@@ -247,42 +193,29 @@ function Stepper({label,value,onChange,step=1,unit='',color=C.txt,mob=true}){
 
 /* ── Set Row ─────────────────────────────────────────────────────── */
 function SetRow({set,idx,onChange,onDelete,onDone,mob=true}){
-  // Mobile: action buttons stacked in narrow column
-  // Desktop: larger buttons side by side
   const actW=mob?56:80;
   return(
-    <div style={{
-      display:'grid',
-      gridTemplateColumns:`${mob?16:22}px 1fr 1fr 1fr ${actW}px`,
-      gap:mob?3:10,alignItems:'center',
-      padding:mob?'9px 4px':'12px 8px',
+    <div style={{display:'grid',gridTemplateColumns:`${mob?16:22}px 1fr 1fr 1fr ${actW}px`,
+      gap:mob?3:10,alignItems:'center',padding:mob?'9px 4px':'12px 8px',
       background:set.done?C.priL:'rgba(238,242,255,0.38)',
       borderLeft:`3px solid ${set.done?C.pri:'transparent'}`,
-      borderRadius:8,marginBottom:4,transition:'border-color .25s,background .25s'
-    }}>
+      borderRadius:8,marginBottom:4,transition:'border-color .25s,background .25s'}}>
       <span style={{color:C.bdr,fontWeight:800,fontSize:mob?11:13,textAlign:'center'}}>{idx+1}</span>
       <Stepper label="重量" value={set.weight} onChange={v=>onChange({...set,weight:v})} step={2.5} unit="kg" mob={mob}/>
       <Stepper label="次數" value={set.reps}   onChange={v=>onChange({...set,reps:v})}   step={1}   unit="次" mob={mob}/>
       <Stepper label="休息" value={set.rest}   onChange={v=>onChange({...set,rest:v})}   step={15}  unit="秒" color={C.warn} mob={mob}/>
-      {/* Action column — guaranteed to be visible */}
-      <div style={{display:'flex',flexDirection:mob?'column':'row',
-        gap:mob?4:6,alignItems:'center',justifyContent:'center',
-        flexShrink:0,width:actW}}>
+      <div style={{display:'flex',flexDirection:mob?'column':'row',gap:mob?4:6,
+        alignItems:'center',justifyContent:'center',flexShrink:0,width:actW}}>
         <button onClick={()=>onDone(set)} className="b-hov"
           style={{width:mob?26:34,height:mob?26:34,flexShrink:0,
-            background:set.done?C.pri:'transparent',
-            border:`1.5px solid ${set.done?C.pri:C.bdr}`,
-            color:set.done?'#fff':C.sub,cursor:'pointer',
-            borderRadius:mob?6:8,fontSize:mob?12:14,
-            display:'flex',alignItems:'center',justifyContent:'center',
-            transition:'all .2s'}}>✓</button>
+            background:set.done?C.pri:'transparent',border:`1.5px solid ${set.done?C.pri:C.bdr}`,
+            color:set.done?'#fff':C.sub,cursor:'pointer',borderRadius:mob?6:8,fontSize:mob?12:14,
+            display:'flex',alignItems:'center',justifyContent:'center',transition:'all .2s'}}>✓</button>
         <button onClick={onDelete} className="b-hov"
           style={{width:mob?26:34,height:mob?26:34,flexShrink:0,
-            background:'transparent',border:`1.5px solid ${C.bdr}`,
-            color:C.bdr,cursor:'pointer',
-            borderRadius:mob?6:8,fontSize:mob?14:16,
-            display:'flex',alignItems:'center',justifyContent:'center',
-            transition:'color .2s'}}>×</button>
+            background:'transparent',border:`1.5px solid ${C.bdr}`,color:C.bdr,cursor:'pointer',
+            borderRadius:mob?6:8,fontSize:mob?14:16,display:'flex',alignItems:'center',
+            justifyContent:'center',transition:'color .2s'}}>×</button>
       </div>
     </div>
   );
@@ -299,7 +232,6 @@ function ExCard({ex,onUpdate,onDelete,onSetDone,mob}){
   const iSz=mob?50:62;
   return(
     <div className="c-hov" style={{background:C.card,borderRadius:16,marginBottom:14,overflow:'hidden',boxShadow:C.sh}}>
-      {/* Header */}
       <div style={{padding:mob?'12px':'16px'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <div style={{width:iSz,height:iSz,background:C.bg,borderRadius:12,flexShrink:0,
@@ -361,12 +293,10 @@ function ExCard({ex,onUpdate,onDelete,onSetDone,mob}){
               ))}
             </div>
           )}
-          {/* Column headers */}
           <div style={{display:'grid',gridTemplateColumns:`${mob?16:22}px 1fr 1fr 1fr ${mob?56:80}px`,
             gap:mob?3:10,padding:'0 4px 6px',borderBottom:`1px solid ${C.bg}`,marginBottom:6}}>
             {['#','重量','次數','休息',''].map((h,i)=>(
-              <span key={i} style={{color:C.bdr,fontSize:9,fontWeight:800,
-                letterSpacing:1,textAlign:'center',textTransform:'uppercase'}}>{h}</span>
+              <span key={i} style={{color:C.bdr,fontSize:9,fontWeight:800,letterSpacing:1,textAlign:'center',textTransform:'uppercase'}}>{h}</span>
             ))}
           </div>
           {ex.sets.map((set,idx)=>(
@@ -386,7 +316,7 @@ function ExCard({ex,onUpdate,onDelete,onSetDone,mob}){
   );
 }
 
-/* ── History ─────────────────────────────────────────────────────── */
+/* ── History Detail ──────────────────────────────────────────────── */
 function HDet({dateKey,record,onBack}){
   const vol=record.exercises.reduce((s,e)=>s+e.sets.reduce((ss,x)=>ss+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0),0);
   return(
@@ -432,6 +362,7 @@ function HDet({dateKey,record,onBack}){
   );
 }
 
+/* ── History List ────────────────────────────────────────────────── */
 function HList({history,onBack}){
   const[sel,setSel]=useState(null);
   const keys=Object.keys(history).sort((a,b)=>b.localeCompare(a));
@@ -485,26 +416,150 @@ function HList({history,onBack}){
   );
 }
 
-/* ── App ─────────────────────────────────────────────────────────── */
+/* ── Start Screen ────────────────────────────────────────────────── */
+function StartScreen({onStart,mob}){
+  const[wName,setWName]=useState('今日訓練');
+  const cp=mob?'20px':'40px';
+  return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+      minHeight:'80vh',padding:`40px ${cp}`,textAlign:'center'}}>
+
+      {/* Big icon */}
+      <div style={{width:mob?100:120,height:mob?100:120,
+        background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+        borderRadius:mob?28:34,display:'flex',alignItems:'center',justifyContent:'center',
+        fontSize:mob?56:68,marginBottom:28,
+        boxShadow:`0 12px 40px ${C.pri}44`}}>💪</div>
+
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:mob?36:48,
+        color:C.txt,letterSpacing:4,lineHeight:1,marginBottom:6}}>健身日誌</div>
+      <div style={{color:C.sub,fontSize:mob?13:15,fontWeight:600,marginBottom:36}}>
+        記錄你的每一次進步
+      </div>
+
+      {/* Workout name input */}
+      <div style={{width:'100%',maxWidth:340,marginBottom:20}}>
+        <div style={{color:C.sub,fontSize:11,fontWeight:800,letterSpacing:2,
+          textTransform:'uppercase',marginBottom:8,textAlign:'left'}}>訓練名稱</div>
+        <input value={wName} onChange={e=>setWName(e.target.value)}
+          placeholder="今日訓練"
+          style={{width:'100%',background:C.card,border:`1.5px solid ${C.bdr}`,
+            borderRadius:12,color:C.txt,fontSize:mob?16:18,fontWeight:700,
+            outline:'none',padding:'13px 16px',boxShadow:C.sh,
+            transition:'border-color .2s'}}
+          onFocus={e=>e.target.style.borderColor=C.pri}
+          onBlur={e=>e.target.style.borderColor=C.bdr}/>
+      </div>
+
+      {/* Start button */}
+      <button onClick={()=>onStart(wName||'今日訓練')} className="b-hov"
+        style={{width:'100%',maxWidth:340,height:mob?58:66,
+          background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+          border:'none',color:'#fff',fontWeight:900,
+          fontSize:mob?18:22,cursor:'pointer',borderRadius:16,
+          boxShadow:`0 8px 28px ${C.pri}55`,
+          display:'flex',alignItems:'center',justifyContent:'center',gap:10,
+          letterSpacing:1,transition:'transform .15s, box-shadow .15s'}}
+        onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-2px)';e.currentTarget.style.boxShadow=`0 12px 36px ${C.pri}66`;}}
+        onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.boxShadow=`0 8px 28px ${C.pri}55`;}}>
+        <span style={{fontSize:mob?22:26}}>▶</span> 開始訓練
+      </button>
+
+      <div style={{color:C.bdr,fontSize:12,fontWeight:600,marginTop:20}}>
+        計時器將在開始後啟動
+      </div>
+    </div>
+  );
+}
+
+/* ── Confirm Save Modal ──────────────────────────────────────────── */
+function ConfirmModal({onConfirm,onCancel,wName}){
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(28,35,64,0.7)',zIndex:3500,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',padding:'20px'}}>
+      <div style={{background:C.card,borderRadius:20,padding:'28px 24px',
+        width:'100%',maxWidth:360,boxShadow:'0 20px 60px rgba(28,35,64,0.3)'}}>
+        <div style={{fontSize:40,textAlign:'center',marginBottom:16}}>💾</div>
+        <div style={{fontWeight:900,fontSize:18,color:C.txt,textAlign:'center',marginBottom:8}}>
+          儲存今日訓練？
+        </div>
+        <div style={{color:C.sub,fontSize:13,fontWeight:600,textAlign:'center',marginBottom:4,lineHeight:1.6}}>
+          「{wName}」將儲存至歷史記錄
+        </div>
+        <div style={{color:C.warn,fontSize:12,fontWeight:700,textAlign:'center',
+          marginBottom:24,background:'#FFF4E6',borderRadius:8,padding:'8px 12px',marginTop:8}}>
+          ⚠️ 儲存後將重置計時器與所有訓練內容
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onCancel} className="b-hov"
+            style={{flex:1,height:48,background:C.bg,border:`1.5px solid ${C.bdr}`,
+              color:C.sub,fontWeight:800,fontSize:15,cursor:'pointer',borderRadius:12}}>
+            取消
+          </button>
+          <button onClick={onConfirm} className="b-hov"
+            style={{flex:1,height:48,background:C.ok,border:'none',
+              color:'#fff',fontWeight:800,fontSize:15,cursor:'pointer',borderRadius:12,
+              boxShadow:`0 4px 16px ${C.ok}55`}}>
+            確認儲存
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main App ────────────────────────────────────────────────────── */
 function App(){
   const mob=useMob();
   const[history,setHist]=useState(()=>{try{return JSON.parse(localStorage.getItem(SK)||'{}');}catch{return{};}});
+
+  // workout state
+  const[phase,setPhase]=useState('idle'); // 'idle' | 'active'
   const[view,setView]=useState('workout');
-  const[exercises,setEx]=useState(()=>[nEx()]);
+  const[exercises,setEx]=useState([]);
   const[wName,setWName]=useState('今日訓練');
-  const[timer,setTimer]=useState(null);
-  const[t0]=useState(Date.now());
   const[elapsed,setEl]=useState(0);
-  const[sv,setSv]=useState('idle');
-  const[showAS,setAS]=useState(false);
+  const[timer,setTimer]=useState(null);
+  const[showConfirm,setShowConfirm]=useState(false);
 
-  useEffect(()=>{const t=setInterval(()=>setEl(Math.floor((Date.now()-t0)/1000)),1000);return()=>clearInterval(t);},[t0]);
+  // interval ref
+  const iRef=useRef(null);
+  const startRef=useRef(null);
 
-  const save=()=>{
+  // start ticker
+  const startTicker=()=>{
+    if(iRef.current)return;
+    startRef.current=Date.now()-elapsed*1000;
+    iRef.current=setInterval(()=>setEl(Math.floor((Date.now()-startRef.current)/1000)),1000);
+  };
+  const stopTicker=()=>{clearInterval(iRef.current);iRef.current=null;};
+
+  useEffect(()=>()=>stopTicker(),[]);
+
+  const handleStart=(name)=>{
+    setWName(name);
+    setEx([nEx()]);
+    setEl(0);
+    setPhase('active');
+    startRef.current=Date.now();
+    iRef.current=setInterval(()=>setEl(Math.floor((Date.now()-startRef.current)/1000)),1000);
+  };
+
+  const handleSaveConfirm=()=>{
+    // persist
     const key=tKey();
     const next={...history,[key]:{name:wName,exercises,duration:elapsed,savedAt:Date.now()}};
-    setHist(next);try{localStorage.setItem(SK,JSON.stringify(next));}catch{}
-    setSv('saved');setTimeout(()=>setSv('idle'),3200);
+    setHist(next);
+    try{localStorage.setItem(SK,JSON.stringify(next));}catch{}
+    // reset
+    stopTicker();
+    setEl(0);
+    setEx([]);
+    setPhase('idle');
+    setView('workout');
+    setShowConfirm(false);
+    setTimer(null);
   };
 
   const onSetDone=(exId,set)=>{
@@ -517,15 +572,72 @@ function App(){
   const doneS=exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
   const totV=exercises.reduce((s,e)=>s+e.sets.reduce((ss,x)=>ss+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0),0);
   const pct=totS?(doneS/totS)*100:0;
-  const isIOS=/iPhone|iPad/.test(navigator.userAgent);
-  const isStd=!!window.navigator.standalone;
   const cp=mob?'14px':'32px';
   const mw=mob?700:920;
-  const rSz=mob?14:18; // ring radius for progress
+  const rR=mob?14:18;
 
+  // ── IDLE phase: show start screen ──
+  if(phase==='idle'&&view==='workout'){
+    return(
+      <div style={{minHeight:'100vh',background:C.bg}}>
+        {/* Slim header with just nav */}
+        <div style={{position:'sticky',top:0,zIndex:200,background:'rgba(255,255,255,0.96)',
+          backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
+          borderBottom:`1px solid ${C.bdr}`,boxShadow:'0 1px 12px rgba(66,99,235,0.07)'}}>
+          <div style={{maxWidth:mw,margin:'0 auto',padding:`0 ${cp}`}}>
+            <div style={{display:'flex',alignItems:'center',gap:mob?8:12,padding:`${mob?'11px':'15px'} 0`}}>
+              <div style={{width:mob?38:46,height:mob?38:46,flexShrink:0,
+                background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+                borderRadius:mob?12:14,display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:mob?22:28,boxShadow:`0 4px 14px ${C.pri}44`}}>💪</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:900,fontSize:mob?17:21,color:C.txt}}>健身日誌</div>
+                <div style={{color:C.bdr,fontSize:mob?11:13,fontWeight:600}}>準備開始訓練</div>
+              </div>
+              <button onClick={()=>setView('history')} className="b-hov"
+                style={{background:'transparent',border:`1.5px solid ${C.bdr}`,
+                  color:C.sub,height:mob?34:40,padding:`0 ${mob?'11px':'18px'}`,
+                  fontWeight:700,fontSize:mob?13:15,cursor:'pointer',borderRadius:9}}>歷史</button>
+            </div>
+          </div>
+        </div>
+        <StartScreen onStart={handleStart} mob={mob}/>
+      </div>
+    );
+  }
+
+  // ── HISTORY view from idle ──
+  if(phase==='idle'&&view==='history'){
+    return(
+      <div style={{minHeight:'100vh',background:C.bg}}>
+        <div style={{position:'sticky',top:0,zIndex:200,background:'rgba(255,255,255,0.96)',
+          backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
+          borderBottom:`1px solid ${C.bdr}`,boxShadow:'0 1px 12px rgba(66,99,235,0.07)'}}>
+          <div style={{maxWidth:mw,margin:'0 auto',padding:`0 ${cp}`}}>
+            <div style={{display:'flex',alignItems:'center',gap:mob?8:12,padding:`${mob?'11px':'15px'} 0`}}>
+              <div style={{width:mob?38:46,height:mob?38:46,flexShrink:0,
+                background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+                borderRadius:mob?12:14,display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:mob?22:28,boxShadow:`0 4px 14px ${C.pri}44`}}>💪</div>
+              <div style={{flex:1}}>
+                <div style={{fontWeight:900,fontSize:mob?17:21,color:C.txt}}>健身日誌</div>
+              </div>
+              <button onClick={()=>setView('workout')} className="b-hov"
+                style={{background:C.pri,border:`1.5px solid ${C.pri}`,
+                  color:'#fff',height:mob?34:40,padding:`0 ${mob?'11px':'18px'}`,
+                  fontWeight:700,fontSize:mob?13:15,cursor:'pointer',borderRadius:9}}>訓練</button>
+            </div>
+          </div>
+        </div>
+        <HList history={history} onBack={()=>setView('workout')}/>
+      </div>
+    );
+  }
+
+  // ── ACTIVE workout ──
   return(
     <div style={{minHeight:'100vh',background:C.bg}}>
-      {/* ── Header ── */}
+      {/* Header */}
       <div style={{position:'sticky',top:0,zIndex:200,background:'rgba(255,255,255,0.96)',
         backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
         borderBottom:`1px solid ${C.bdr}`,boxShadow:'0 1px 12px rgba(66,99,235,0.07)'}}>
@@ -539,15 +651,25 @@ function App(){
               <input value={wName} onChange={e=>setWName(e.target.value)}
                 style={{background:'transparent',border:'none',color:C.txt,fontWeight:900,
                   fontSize:mob?17:21,outline:'none',width:'100%',minWidth:0,padding:0}}/>
-              <div style={{color:C.pri,fontSize:mob?11:13,fontWeight:700,letterSpacing:1}}>⏱ {fT(elapsed)}</div>
+              {/* Live timer — green pulsing dot */}
+              <div style={{display:'flex',alignItems:'center',gap:5}}>
+                <span style={{width:6,height:6,borderRadius:3,background:C.ok,
+                  display:'inline-block',animation:'none',
+                  boxShadow:`0 0 0 2px ${C.okL}`}}/>
+                <span style={{color:C.ok,fontSize:mob?11:13,fontWeight:700,
+                  fontFamily:"'Bebas Neue',sans-serif",letterSpacing:1,fontSize:mob?14:17}}>
+                  {fT(elapsed)}
+                </span>
+              </div>
             </div>
-            {/* progress ring */}
+            {/* Progress ring */}
             <svg width={mob?36:44} height={mob?36:44} style={{transform:'rotate(-90deg)',flexShrink:0}}>
-              <circle cx={mob?18:22} cy={mob?18:22} r={rSz} fill="none" stroke={C.bdr} strokeWidth="3.5"/>
-              <circle cx={mob?18:22} cy={mob?18:22} r={rSz} fill="none" stroke={C.pri} strokeWidth="3.5"
-                strokeDasharray={`${(pct/100)*(2*Math.PI*rSz).toFixed(1)} ${(2*Math.PI*rSz).toFixed(1)}`}
+              <circle cx={mob?18:22} cy={mob?18:22} r={rR} fill="none" stroke={C.bdr} strokeWidth="3.5"/>
+              <circle cx={mob?18:22} cy={mob?18:22} r={rR} fill="none" stroke={C.pri} strokeWidth="3.5"
+                strokeDasharray={`${(pct/100)*(2*Math.PI*rR).toFixed(1)} ${(2*Math.PI*rR).toFixed(1)}`}
                 strokeLinecap="round" style={{transition:'stroke-dasharray .5s ease'}}/>
             </svg>
+            {/* Nav */}
             <div style={{display:'flex',gap:mob?4:6}}>
               {[['workout','訓練'],['history','歷史']].map(([v,l])=>(
                 <button key={v} onClick={()=>setView(v)} className="b-hov"
@@ -556,10 +678,6 @@ function App(){
                     fontWeight:700,fontSize:mob?13:15,cursor:'pointer',borderRadius:9,transition:'all .2s'}}>{l}</button>
               ))}
             </div>
-            <button onClick={()=>setAS(true)} className="b-hov"
-              style={{width:mob?32:38,height:mob?32:38,background:C.bg,border:`1.5px solid ${C.bdr}`,
-                color:C.sub,borderRadius:9,cursor:'pointer',fontSize:mob?13:15,fontWeight:800,
-                flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>?</button>
           </div>
         </div>
         {/* Stats strip */}
@@ -577,10 +695,9 @@ function App(){
         )}
       </div>
 
-      {/* ── Content ── */}
+      {/* Content */}
       {view==='history'?<HList history={history} onBack={()=>setView('workout')}/>:(
         <div style={{maxWidth:mw,margin:'0 auto',padding:`16px ${cp} 100px`}}>
-          {/* Desktop 2-col, mobile 1-col */}
           {mob?(
             exercises.map(ex=>(
               <ExCard key={ex.id} ex={ex} mob={true}
@@ -598,33 +715,26 @@ function App(){
               ))}
             </div>
           )}
+
           <button onClick={()=>setEx(p=>[...p,nEx()])} className="b-hov"
             style={{width:'100%',background:C.card,border:`2px dashed ${C.bdr}`,
               color:C.sub,height:mob?50:58,fontWeight:800,fontSize:mob?14:17,
               cursor:'pointer',borderRadius:14,marginBottom:10,boxShadow:C.sh}}>
             ＋ 新增動作
           </button>
-          <button onClick={save} className="b-hov"
+
+          <button onClick={()=>setShowConfirm(true)} className="b-hov"
             style={{width:'100%',border:'none',height:mob?50:58,
-              background:sv==='saved'?C.ok:C.pri,
-              color:'#fff',fontWeight:800,fontSize:mob?14:17,cursor:'pointer',
-              borderRadius:14,marginBottom:14,transition:'background .4s',
-              boxShadow:`0 4px 16px ${sv==='saved'?C.ok:C.pri}55`}}>
-            {sv==='saved'?'✅ 已儲存今日記錄':'💾 儲存今日訓練記錄'}
+              background:C.ok,color:'#fff',fontWeight:800,
+              fontSize:mob?14:17,cursor:'pointer',borderRadius:14,
+              boxShadow:`0 4px 16px ${C.ok}55`}}>
+            💾 儲存今日訓練記錄
           </button>
-          {isIOS&&!isStd&&(
-            <div style={{background:C.card,border:`1.5px solid ${C.bdr}`,borderRadius:14,
-              padding:'16px',textAlign:'center',boxShadow:C.sh}}>
-              <div style={{fontWeight:800,color:C.pri,fontSize:14,marginBottom:6}}>📲 加到主畫面，像 App 一樣使用！</div>
-              <div style={{color:C.sub,fontSize:12,lineHeight:1.8,fontWeight:600}}>
-                Safari 底部 <strong style={{color:C.txt}}>⬆ 分享</strong> → <strong style={{color:C.txt}}>加入主畫面</strong>
-              </div>
-            </div>
-          )}
         </div>
       )}
+
       {timer&&<RestTimer seconds={timer.seconds} onDone={()=>setTimer(null)} onSkip={()=>setTimer(null)}/>}
-      {showAS&&<ASModal onClose={()=>setAS(false)}/>}
+      {showConfirm&&<ConfirmModal wName={wName} onConfirm={handleSaveConfirm} onCancel={()=>setShowConfirm(false)}/>}
     </div>
   );
 }
