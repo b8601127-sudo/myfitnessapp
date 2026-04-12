@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no,maximum-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="健身日誌">
+<meta name="theme-color" content="#4263EB">
+<link rel="manifest" id="mf">
+<title>健身日誌</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none}
+html{height:100%;background:#EEF2FF}
+body{margin:0;padding:0;background:#EEF2FF;-webkit-font-smoothing:antialiased;min-height:100vh;
+  overflow-x:hidden;padding-top:env(safe-area-inset-top);font-family:'Nunito',sans-serif;color:#1C2340}
+input[type=number]{-moz-appearance:textfield}
+input[type=number]::-webkit-inner-spin-button,input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none}
+::-webkit-scrollbar{width:6px}::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#DDE5F5;border-radius:3px}
+button{-webkit-appearance:none;font-family:'Nunito',sans-serif}
+input{font-family:'Nunito',sans-serif}
+@media(hover:hover){
+  .c-hov:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(66,99,235,0.15)!important;transition:all .2s ease}
+  .b-hov:hover{opacity:.82}
+  .pb:hover{background:#E8EDFF!important;border-color:#4263EB!important;color:#4263EB!important}
+}
+@media(hover:none){button:active{opacity:.7}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .25s ease forwards}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+</style>
+<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+<script>
+(function(){
+  try{
+    var c=document.createElement('canvas');c.width=512;c.height=512;
+    var x=c.getContext('2d'),g=x.createLinearGradient(0,0,512,512);
+    g.addColorStop(0,'#4263EB');g.addColorStop(1,'#3451C5');
+    x.fillStyle=g;x.beginPath();x.rect(0,0,512,512);x.fill();
+    x.font='270px serif';x.textAlign='center';x.textBaseline='middle';x.fillText('💪',256,290);
+    var ic=c.toDataURL('image/png');
+    var lk=document.createElement('link');lk.rel='apple-touch-icon';lk.href=ic;document.head.appendChild(lk);
+    document.getElementById('mf').href='data:application/json;charset=utf-8,'+
+      encodeURIComponent(JSON.stringify({name:'健身日誌',short_name:'健身日誌',
+        start_url:'./',display:'standalone',background_color:'#EEF2FF',theme_color:'#4263EB',
+        orientation:'portrait',icons:[{src:ic,sizes:'512x512',type:'image/png'}]}));
+  }catch(e){}
+})();
+</script>
+<script type="text/babel">
+const {useState,useEffect,useRef}=React;
+
+const C={
+  bg:'#EEF2FF',card:'#FFFFFF',
+  pri:'#4263EB',pri2:'#748FFC',priL:'#E8EDFF',
+  mus:'#E03131',bod:'#B8CDE0',
+  txt:'#1C2340',sub:'#6B7AA1',bdr:'#DDE5F5',
+  ok:'#2F9E44',okL:'#D3F9D8',
+  warn:'#E8590C',warnL:'#FFF4E6',
+  del:'#C92A2A',delL:'#FFE3E3',
+  sh:'0 2px 16px rgba(59,91,219,0.08)',
+};
+const PRESETS={
+  upper:['側平舉','飛鳥','肩推','胸推','夾胸','下拉','三頭下壓','二頭彎舉','划船'],
+  lower:['深蹲','硬舉','腿推','腿伸展'],
+};
+const DR=90,DREPS=10,DS=4,SK='fitness_v9';
+const p2=n=>String(n).padStart(2,'0');
+const fT=s=>`${p2(Math.floor(s/60))}:${p2(s%60)}`;
+const WD='日一二三四五六';
+
+function tKey(){
+  const d=new Date();
+  return`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+}
+// "2025/06/18（週三）"
+function fDL(k){
+  const[y,m,d]=k.split('-');
+  const dt=new Date(+y,+m-1,+d);
+  return`${y}/${m}/${d}（週${WD[dt.getDay()]}）`;
+}
+// Short: "6/18 週三"
+function fDShort(k){
+  const[,m,d]=k.split('-');
+  const dt=new Date(...k.split('-').map((v,i)=>i===1?+v-1:+v));
+  return`${+m}/${+d} 週${WD[dt.getDay()]}`;
+}
+// Title for active workout: "6月18日（週三）"
+function todayTitle(){
+  const d=new Date();
+  return`${d.getMonth()+1}月${d.getDate()}日（週${WD[d.getDay()]}）`;
+}
+
+const uid=()=>`${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+const nSet=(o={})=>({id:uid(),weight:0,reps:DREPS,rest:DR,done:false,...o});
+const nEx=(name='')=>({id:uid(),name,sets:Array.from({length:DS},()=>nSet())});
+
+function useMob(){
+  const[m,sm]=useState(()=>window.innerWidth<768);
+  useEffect(()=>{const f=()=>sm(window.innerWidth<768);window.addEventListener('resize',f);return()=>window.removeEventListener('resize',f);},[]);
+  return m;
+}
+
+/* ── Muscle Icon ─────────────────────────────────────────────────── */
+function MI({name,size=60}){
+  const b=C.bod,m=C.mus;
+  const Body=()=>(
+    <g>
+      <ellipse cx="30" cy="8.5" rx="7" ry="7.5" fill={b}/>
+      <path d="M27,15 L33,15 L34,20 L26,20 Z" fill={b}/>
+      <path d="M16,20 C10,26 10,44 10,52 L50,52 C50,44 50,26 44,20 Z" fill={b}/>
+      <ellipse cx="11" cy="24" rx="7" ry="4.5" transform="rotate(-20 11 24)" fill={b}/>
+      <ellipse cx="49" cy="24" rx="7" ry="4.5" transform="rotate(20 49 24)" fill={b}/>
+      <path d="M7,24 C4,32 4,44 6,51 C8,49 12,45 13,38 C14,30 12,25 7,24 Z" fill={b}/>
+      <path d="M53,24 C56,32 56,44 54,51 C52,49 48,45 47,38 C46,30 48,25 53,24 Z" fill={b}/>
+      <path d="M6,51 C4,58 5,66 7,69 C9,68 11,63 10,56 Z" fill={b}/>
+      <path d="M54,51 C56,58 55,66 53,69 C51,68 49,63 50,56 Z" fill={b}/>
+      <path d="M16,52 C10,61 10,73 11,80 C13,81 17,80 18,73 C19,64 19,57 18,53 Z" fill={b}/>
+      <path d="M44,52 C50,61 50,73 49,80 C47,81 43,80 42,73 C41,64 41,57 42,53 Z" fill={b}/>
+      <path d="M11,80 C9,85 11,91 13,92 C16,91 17,87 16,83 Z" fill={b}/>
+      <path d="M49,80 C51,85 49,91 47,92 C44,91 43,87 44,83 Z" fill={b}/>
+    </g>
+  );
+  const ic={
+    '側平舉':<><Body/><ellipse cx="9" cy="27" rx="5.5" ry="7" transform="rotate(-38 9 27)" fill={m} opacity=".88"/><ellipse cx="51" cy="27" rx="5.5" ry="7" transform="rotate(38 51 27)" fill={m} opacity=".88"/></>,
+    '飛鳥':<><Body/><path d="M17,22 Q16,37 21,38 Q27,39 28,22 Z" fill={m} opacity=".9"/><path d="M43,22 Q44,37 39,38 Q33,39 32,22 Z" fill={m} opacity=".9"/></>,
+    '肩推':<><Body/><ellipse cx="11" cy="24" rx="7" ry="4.5" transform="rotate(-20 11 24)" fill={m} opacity=".92"/><ellipse cx="49" cy="24" rx="7" ry="4.5" transform="rotate(20 49 24)" fill={m} opacity=".92"/><ellipse cx="5.5" cy="40" rx="2.8" ry="6" fill={m} opacity=".72"/><ellipse cx="54.5" cy="40" rx="2.8" ry="6" fill={m} opacity=".72"/></>,
+    '胸推':<><Body/><path d="M17,22 Q16,37 21,38 Q27,39 28,22 Z" fill={m} opacity=".9"/><path d="M43,22 Q44,37 39,38 Q33,39 32,22 Z" fill={m} opacity=".9"/><ellipse cx="11" cy="24" rx="7" ry="4.5" transform="rotate(-20 11 24)" fill={m} opacity=".5"/><ellipse cx="49" cy="24" rx="7" ry="4.5" transform="rotate(20 49 24)" fill={m} opacity=".5"/></>,
+    '夾胸':<><Body/><path d="M17,22 Q15,38 20,40 Q27,41 28,22 Z" fill={m} opacity=".9"/><path d="M43,22 Q45,38 40,40 Q33,41 32,22 Z" fill={m} opacity=".9"/></>,
+    '下拉':<><Body/><path d="M30,22 Q43,26 44,32 Q30,40 16,32 Q17,26 30,22 Z" fill={m} opacity=".8"/><path d="M12,27 C10,35 10,46 12,52 L18,50 C16,40 16,31 16,27 Z" fill={m} opacity=".9"/><path d="M48,27 C50,35 50,46 48,52 L42,50 C44,40 44,31 44,27 Z" fill={m} opacity=".9"/><ellipse cx="7.5" cy="37" rx="2.5" ry="5.5" fill={m} opacity=".7"/><ellipse cx="52.5" cy="37" rx="2.5" ry="5.5" fill={m} opacity=".7"/></>,
+    '三頭下壓':<><Body/><ellipse cx="5.5" cy="40" rx="3.2" ry="7" fill={m} opacity=".9"/><ellipse cx="54.5" cy="40" rx="3.2" ry="7" fill={m} opacity=".9"/></>,
+    '二頭彎舉':<><Body/><ellipse cx="8" cy="37" rx="3.5" ry="6.5" fill={m} opacity=".9"/><ellipse cx="52" cy="37" rx="3.5" ry="6.5" fill={m} opacity=".9"/></>,
+    '划船':<><Body/><path d="M12,27 C10,35 10,46 12,52 L18,50 C16,40 16,31 16,27 Z" fill={m} opacity=".85"/><path d="M48,27 C50,35 50,46 48,52 L42,50 C44,40 44,31 44,27 Z" fill={m} opacity=".85"/><ellipse cx="30" cy="34" rx="9" ry="7.5" fill={m} opacity=".78"/><path d="M30,22 Q43,26 44,32 Q30,40 16,32 Q17,26 30,22 Z" fill={m} opacity=".7"/></>,
+    '深蹲':<><Body/><ellipse cx="15.5" cy="65" rx="5.5" ry="10" fill={m} opacity=".9"/><ellipse cx="44.5" cy="65" rx="5.5" ry="10" fill={m} opacity=".9"/><ellipse cx="20" cy="54" rx="7.5" ry="5" fill={m} opacity=".7"/><ellipse cx="40" cy="54" rx="7.5" ry="5" fill={m} opacity=".7"/></>,
+    '硬舉':<><Body/><path d="M25,43 L35,43 L35,52 L25,52 Z" fill={m} opacity=".85"/><ellipse cx="20" cy="57" rx="9" ry="7" fill={m} opacity=".9"/><ellipse cx="40" cy="57" rx="9" ry="7" fill={m} opacity=".9"/><ellipse cx="15.5" cy="67" rx="4.5" ry="9" fill={m} opacity=".82"/><ellipse cx="44.5" cy="67" rx="4.5" ry="9" fill={m} opacity=".82"/><path d="M30,22 Q43,26 44,32 Q30,39 16,32 Q17,26 30,22 Z" fill={m} opacity=".65"/></>,
+    '腿推':<><Body/><ellipse cx="15.5" cy="65" rx="5.5" ry="10" fill={m} opacity=".9"/><ellipse cx="44.5" cy="65" rx="5.5" ry="10" fill={m} opacity=".9"/><ellipse cx="20" cy="54" rx="7" ry="4.5" fill={m} opacity=".65"/><ellipse cx="40" cy="54" rx="7" ry="4.5" fill={m} opacity=".65"/></>,
+    '腿伸展':<><Body/><ellipse cx="15.5" cy="65" rx="5.5" ry="10" fill={m} opacity=".9"/><ellipse cx="44.5" cy="65" rx="5.5" ry="10" fill={m} opacity=".9"/></>,
+  };
+  return(<svg viewBox="0 0 60 92" width={size} height={size} style={{display:'block',flexShrink:0}}>{ic[name]??<><Body/></>}</svg>);
+}
+
+/* ── Rest Timer ──────────────────────────────────────────────────── */
+function RestTimer({seconds,onDone,onSkip}){
+  const[rem,setRem]=useState(seconds);
+  const ref=useRef();
+  useEffect(()=>{
+    ref.current=setInterval(()=>{setRem(r=>{if(r<=1){clearInterval(ref.current);onDone();return 0;}return r-1;});},1000);
+    return()=>clearInterval(ref.current);
+  },[]);
+  const R=62,circ=2*Math.PI*R,prog=((seconds-rem)/seconds)*circ;
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(28,35,64,0.93)',zIndex:3000,
+      display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+      backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',
+      paddingBottom:'max(env(safe-area-inset-bottom),24px)'}}>
+      <div style={{background:'rgba(255,255,255,0.07)',borderRadius:24,padding:'36px 48px',
+        display:'flex',flexDirection:'column',alignItems:'center',gap:20}}>
+        <div style={{fontWeight:800,color:'rgba(255,255,255,0.4)',fontSize:11,letterSpacing:5}}>組間休息</div>
+        <div style={{position:'relative',width:156,height:156}}>
+          <svg width="156" height="156" style={{transform:'rotate(-90deg)',position:'absolute'}}>
+            <circle cx="78" cy="78" r={R} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="10"/>
+            <circle cx="78" cy="78" r={R} fill="none" stroke={C.pri2} strokeWidth="10"
+              strokeDasharray={`${prog} ${circ}`} strokeLinecap="round"
+              style={{transition:'stroke-dasharray 0.9s linear'}}/>
+          </svg>
+          <div style={{position:'absolute',inset:0,display:'flex',flexDirection:'column',
+            alignItems:'center',justifyContent:'center'}}>
+            <span style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:64,color:'#fff',lineHeight:1}}>{rem}</span>
+            <span style={{color:'rgba(255,255,255,0.35)',fontSize:12,fontWeight:700,letterSpacing:2}}>秒</span>
+          </div>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          {[[-15,'−15s'],[+15,'+15s']].map(([d,l])=>(
+            <button key={l} onClick={()=>setRem(r=>Math.max(0,r+d))} className="b-hov"
+              style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.15)',
+                color:'rgba(255,255,255,0.7)',padding:'0 20px',height:44,borderRadius:10,fontWeight:700,fontSize:14,cursor:'pointer'}}>{l}</button>
+          ))}
+        </div>
+        <button onClick={onSkip} className="b-hov"
+          style={{background:C.pri,border:'none',color:'#fff',height:48,padding:'0 40px',borderRadius:12,fontWeight:800,fontSize:15,cursor:'pointer'}}>
+          跳過休息
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Stepper ─────────────────────────────────────────────────────── */
+function Stepper({label,value,onChange,step=1,unit='',color=C.txt,mob=true}){
+  const bs=mob?24:30,iw=mob?38:50,fs=mob?20:24;
+  const dec=()=>onChange(Math.round(Math.max(0,parseFloat(value)-step)*100)/100);
+  const inc=()=>onChange(Math.round((parseFloat(value)+step)*100)/100);
+  const Btn=({fn,ch})=>(
+    <button onClick={fn} style={{width:bs,height:bs,background:C.bg,border:`1.5px solid ${C.bdr}`,
+      color:C.sub,cursor:'pointer',fontSize:mob?15:18,borderRadius:mob?5:7,flexShrink:0,
+      display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,padding:0,lineHeight:1}}>{ch}</button>
+  );
+  return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',gap:1,minWidth:0}}>
+      <span style={{color:C.sub,fontSize:mob?9:10,fontWeight:800,letterSpacing:1,textTransform:'uppercase',whiteSpace:'nowrap'}}>{label}</span>
+      <div style={{display:'flex',alignItems:'center',gap:mob?1:3}}>
+        <Btn fn={dec} ch="−"/>
+        <input type="number" value={value} onChange={e=>onChange(e.target.value)}
+          style={{width:iw,textAlign:'center',background:'transparent',border:'none',
+            borderBottom:`2px solid ${C.bdr}`,color,fontFamily:"'Bebas Neue',sans-serif",
+            fontSize:fs,outline:'none',padding:'0',minWidth:0,display:'block'}}/>
+        <Btn fn={inc} ch="+"/>
+      </div>
+      {unit&&<span style={{color:C.bdr,fontSize:mob?9:10,fontWeight:700}}>{unit}</span>}
+    </div>
+  );
+}
+
+/* ── Set Row ─────────────────────────────────────────────────────── */
+function SetRow({set,idx,onChange,onDelete,onDone,mob=true}){
+  const actW=mob?56:80;
+  return(
+    <div style={{display:'grid',gridTemplateColumns:`${mob?16:22}px 1fr 1fr 1fr ${actW}px`,
+      gap:mob?3:10,alignItems:'center',padding:mob?'9px 4px':'12px 8px',
+      background:set.done?C.priL:'rgba(238,242,255,0.38)',
+      borderLeft:`3px solid ${set.done?C.pri:'transparent'}`,
+      borderRadius:8,marginBottom:4,transition:'border-color .25s,background .25s'}}>
+      <span style={{color:C.bdr,fontWeight:800,fontSize:mob?11:13,textAlign:'center'}}>{idx+1}</span>
+      <Stepper label="重量" value={set.weight} onChange={v=>onChange({...set,weight:v})} step={2.5} unit="kg" mob={mob}/>
+      <Stepper label="次數" value={set.reps}   onChange={v=>onChange({...set,reps:v})}   step={1}   unit="次" mob={mob}/>
+      <Stepper label="休息" value={set.rest}   onChange={v=>onChange({...set,rest:v})}   step={15}  unit="秒" color={C.warn} mob={mob}/>
+      <div style={{display:'flex',flexDirection:mob?'column':'row',gap:mob?4:6,
+        alignItems:'center',justifyContent:'center',flexShrink:0,width:actW}}>
+        <button onClick={()=>onDone(set)} className="b-hov"
+          style={{width:mob?26:34,height:mob?26:34,flexShrink:0,
+            background:set.done?C.pri:'transparent',border:`1.5px solid ${set.done?C.pri:C.bdr}`,
+            color:set.done?'#fff':C.sub,cursor:'pointer',borderRadius:mob?6:8,fontSize:mob?12:14,
+            display:'flex',alignItems:'center',justifyContent:'center',transition:'all .2s'}}>✓</button>
+        <button onClick={onDelete} className="b-hov"
+          style={{width:mob?26:34,height:mob?26:34,flexShrink:0,
+            background:'transparent',border:`1.5px solid ${C.bdr}`,color:C.bdr,cursor:'pointer',
+            borderRadius:mob?6:8,fontSize:mob?14:16,display:'flex',alignItems:'center',
+            justifyContent:'center',transition:'color .2s'}}>×</button>
+      </div>
+    </div>
+  );
+}
+
+/* ── Exercise Card ───────────────────────────────────────────────── */
+function ExCard({ex,onUpdate,onDelete,onSetDone,mob}){
+  const[collapsed,setCollapsed]=useState(false);
+  const[presetOpen,setPresetOpen]=useState(!ex.name);
+  const done=ex.sets.filter(s=>s.done).length;
+  const total=ex.sets.length;
+  const vol=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);
+  const addSet=()=>{const l=ex.sets[ex.sets.length-1]||{};onUpdate({...ex,sets:[...ex.sets,nSet({weight:l.weight||0,reps:l.reps||DREPS,rest:l.rest||DR})]});};
+  const iSz=mob?50:62;
+  return(
+    <div className="c-hov fade-in" style={{background:C.card,borderRadius:16,marginBottom:14,overflow:'hidden',boxShadow:C.sh}}>
+      <div style={{padding:mob?'12px':'16px'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:iSz,height:iSz,background:C.bg,borderRadius:12,flexShrink:0,
+            border:`1.5px solid ${C.bdr}`,display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <MI name={ex.name} size={Math.round(iSz*0.78)}/>
+          </div>
+          <div style={{flex:1,minWidth:0,cursor:'pointer'}} onClick={()=>setCollapsed(c=>!c)}>
+            <div style={{fontWeight:800,fontSize:mob?16:19,color:C.txt,
+              overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',marginBottom:2}}>
+              {ex.name||<span style={{color:C.bdr}}>請選擇動作</span>}
+            </div>
+            <div style={{display:'flex',gap:8,alignItems:'center',flexWrap:'wrap'}}>
+              <span style={{background:C.priL,color:C.pri,fontSize:11,fontWeight:700,padding:'2px 8px',borderRadius:6}}>{done}/{total} 組</span>
+              {vol>0&&<span style={{color:C.sub,fontSize:12,fontWeight:600}}>{vol}kg</span>}
+            </div>
+            <div style={{height:3,background:C.bg,borderRadius:2,overflow:'hidden',marginTop:7}}>
+              <div style={{width:`${total?(done/total)*100:0}%`,height:'100%',background:C.pri,borderRadius:2,transition:'width .4s ease'}}/>
+            </div>
+          </div>
+          <button onClick={e=>{e.stopPropagation();onDelete();}} className="b-hov"
+            style={{width:36,height:36,background:C.bg,border:`1.5px solid ${C.bdr}`,
+              color:C.sub,cursor:'pointer',borderRadius:10,flexShrink:0,
+              display:'flex',alignItems:'center',justifyContent:'center',fontSize:16}}>🗑</button>
+          <span style={{color:C.bdr,fontSize:12,cursor:'pointer',flexShrink:0,
+            transform:collapsed?'rotate(0)':'rotate(180deg)',transition:'transform .3s',userSelect:'none'}}
+            onClick={()=>setCollapsed(c=>!c)}>▲</span>
+        </div>
+      </div>
+      {!collapsed&&(
+        <div style={{borderTop:`1px solid ${C.bg}`,padding:'12px 12px 14px'}}>
+          <input value={ex.name} onChange={e=>onUpdate({...ex,name:e.target.value})}
+            placeholder="輸入動作名稱..."
+            style={{width:'100%',background:C.bg,border:'none',borderRadius:8,
+              color:C.txt,fontSize:13,fontWeight:600,outline:'none',padding:'8px 12px',marginBottom:10}}/>
+          <button onClick={()=>setPresetOpen(o=>!o)} className="b-hov"
+            style={{background:presetOpen?C.priL:'transparent',border:`1.5px solid ${presetOpen?C.pri:C.bdr}`,
+              color:presetOpen?C.pri:C.sub,padding:'0 14px',height:34,fontSize:12,fontWeight:700,
+              cursor:'pointer',borderRadius:8,marginBottom:presetOpen?10:0,transition:'all .2s'}}>
+            {presetOpen?'▲ 收起動作庫':'▼ 展開動作庫'}
+          </button>
+          {presetOpen&&(
+            <div style={{background:C.bg,borderRadius:12,padding:'12px',marginBottom:12}}>
+              {[['🏋️ 上半身','upper'],['🦵 下半身','lower']].map(([label,key])=>(
+                <div key={key} style={{marginBottom:10}}>
+                  <div style={{color:C.sub,fontSize:10,fontWeight:800,letterSpacing:2,marginBottom:8,textTransform:'uppercase'}}>{label}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
+                    {PRESETS[key].map(p=>(
+                      <button key={p} className="pb b-hov"
+                        onClick={()=>{onUpdate({...ex,name:p});setPresetOpen(false);}}
+                        style={{display:'flex',alignItems:'center',gap:6,padding:'6px 10px',
+                          background:ex.name===p?C.pri:C.card,border:`1.5px solid ${ex.name===p?C.pri:C.bdr}`,
+                          color:ex.name===p?'#fff':C.txt,fontSize:12,fontWeight:700,cursor:'pointer',
+                          borderRadius:10,transition:'all .15s',minHeight:38,boxShadow:C.sh}}>
+                        <MI name={p} size={22}/>{p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          <div style={{display:'grid',gridTemplateColumns:`${mob?16:22}px 1fr 1fr 1fr ${mob?56:80}px`,
+            gap:mob?3:10,padding:'0 4px 6px',borderBottom:`1px solid ${C.bg}`,marginBottom:6}}>
+            {['#','重量','次數','休息',''].map((h,i)=>(
+              <span key={i} style={{color:C.bdr,fontSize:9,fontWeight:800,letterSpacing:1,textAlign:'center',textTransform:'uppercase'}}>{h}</span>
+            ))}
+          </div>
+          {ex.sets.map((set,idx)=>(
+            <SetRow key={set.id} set={set} idx={idx} mob={mob}
+              onChange={u=>onUpdate({...ex,sets:ex.sets.map(s=>s.id===set.id?u:s)})}
+              onDelete={()=>onUpdate({...ex,sets:ex.sets.filter(s=>s.id!==set.id)})}
+              onDone={s=>onSetDone(ex.id,s)}/>
+          ))}
+          <button onClick={addSet} className="b-hov"
+            style={{marginTop:8,width:'100%',background:'transparent',border:`1.5px dashed ${C.bdr}`,
+              color:C.sub,height:40,fontWeight:700,fontSize:13,cursor:'pointer',borderRadius:10}}>
+            + 新增組數
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Delete Confirm Modal ────────────────────────────────────────── */
+function DelModal({dateKey,onConfirm,onCancel}){
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(28,35,64,0.7)',zIndex:4000,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',padding:'20px'}}>
+      <div style={{background:C.card,borderRadius:20,padding:'28px 24px',
+        width:'100%',maxWidth:340,boxShadow:'0 20px 60px rgba(28,35,64,0.25)',
+        animation:'slideUp .2s ease'}}>
+        <div style={{fontSize:38,textAlign:'center',marginBottom:14}}>🗑️</div>
+        <div style={{fontWeight:900,fontSize:17,color:C.txt,textAlign:'center',marginBottom:8}}>刪除訓練記錄？</div>
+        <div style={{color:C.sub,fontSize:13,fontWeight:600,textAlign:'center',marginBottom:20,lineHeight:1.6}}>
+          {fDL(dateKey)}<br/>
+          <span style={{color:C.del,fontSize:12}}>刪除後無法復原</span>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onCancel} className="b-hov"
+            style={{flex:1,height:48,background:C.bg,border:`1.5px solid ${C.bdr}`,
+              color:C.sub,fontWeight:800,fontSize:15,cursor:'pointer',borderRadius:12}}>取消</button>
+          <button onClick={onConfirm} className="b-hov"
+            style={{flex:1,height:48,background:C.del,border:'none',
+              color:'#fff',fontWeight:800,fontSize:15,cursor:'pointer',borderRadius:12,
+              boxShadow:`0 4px 16px ${C.del}44`}}>確認刪除</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Save Confirm Modal ──────────────────────────────────────────── */
+function SaveModal({title,onConfirm,onCancel}){
+  return(
+    <div style={{position:'fixed',inset:0,background:'rgba(28,35,64,0.7)',zIndex:3500,
+      display:'flex',alignItems:'center',justifyContent:'center',
+      backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',padding:'20px'}}>
+      <div style={{background:C.card,borderRadius:20,padding:'28px 24px',
+        width:'100%',maxWidth:340,boxShadow:'0 20px 60px rgba(28,35,64,0.25)'}}>
+        <div style={{fontSize:38,textAlign:'center',marginBottom:14}}>💾</div>
+        <div style={{fontWeight:900,fontSize:17,color:C.txt,textAlign:'center',marginBottom:8}}>儲存今日訓練？</div>
+        <div style={{color:C.sub,fontSize:13,fontWeight:600,textAlign:'center',marginBottom:6,lineHeight:1.6}}>{title}</div>
+        <div style={{background:C.warnL,borderRadius:8,padding:'8px 12px',marginBottom:22,textAlign:'center'}}>
+          <span style={{color:C.warn,fontSize:12,fontWeight:700}}>⚠️ 儲存後計時器與訓練內容將重置</span>
+        </div>
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={onCancel} className="b-hov"
+            style={{flex:1,height:48,background:C.bg,border:`1.5px solid ${C.bdr}`,
+              color:C.sub,fontWeight:800,fontSize:15,cursor:'pointer',borderRadius:12}}>取消</button>
+          <button onClick={onConfirm} className="b-hov"
+            style={{flex:1,height:48,background:C.ok,border:'none',
+              color:'#fff',fontWeight:800,fontSize:15,cursor:'pointer',borderRadius:12,
+              boxShadow:`0 4px 16px ${C.ok}44`}}>確認儲存</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── History Detail ──────────────────────────────────────────────── */
+function HDet({dateKey,record,onBack,onDelete}){
+  const[showDel,setShowDel]=useState(false);
+  const vol=record.exercises.reduce((s,e)=>s+e.sets.reduce((ss,x)=>ss+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0),0);
+  return(
+    <div style={{overflowY:'auto',maxWidth:860,margin:'0 auto',padding:'16px 14px 80px'}}>
+      {/* Back + Delete row */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
+        <button onClick={onBack} className="b-hov"
+          style={{background:'transparent',border:'none',color:C.sub,fontWeight:700,fontSize:13,
+            cursor:'pointer',display:'flex',alignItems:'center',gap:6,minHeight:44,padding:'8px 0'}}>
+          ← 返回歷史
+        </button>
+        <button onClick={()=>setShowDel(true)} className="b-hov"
+          style={{background:C.delL,border:`1.5px solid ${C.del}22`,color:C.del,
+            height:36,padding:'0 14px',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer',
+            display:'flex',alignItems:'center',gap:5}}>
+          🗑 刪除記錄
+        </button>
+      </div>
+
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:26,color:C.txt,marginBottom:2,letterSpacing:2}}>{record.name}</div>
+      <div style={{color:C.pri,fontWeight:700,fontSize:13,marginBottom:16}}>{fDL(dateKey)}</div>
+
+      <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,marginBottom:24}}>
+        {[['⏱',fT(record.duration||0),'時長'],['🏋️',`${vol}kg`,'訓練量'],['📋',`${record.exercises.length}個`,'動作']].map(([ic,v,l])=>(
+          <div key={l} style={{background:C.card,borderRadius:12,padding:'12px 8px',textAlign:'center',boxShadow:C.sh}}>
+            <div style={{fontSize:20,marginBottom:2}}>{ic}</div>
+            <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:C.pri}}>{v}</div>
+            <div style={{color:C.sub,fontSize:11,fontWeight:700}}>{l}</div>
+          </div>
+        ))}
+      </div>
+
+      {record.exercises.map((ex,ei)=>{
+        const eV=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);
+        return(
+          <div key={ei} style={{background:C.card,borderRadius:14,marginBottom:12,overflow:'hidden',boxShadow:C.sh}}>
+            <div style={{padding:'12px 14px',display:'flex',alignItems:'center',gap:10,borderBottom:`1px solid ${C.bg}`}}>
+              <div style={{width:38,height:38,background:C.bg,borderRadius:9,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}><MI name={ex.name} size={28}/></div>
+              <span style={{fontWeight:800,fontSize:15,color:C.txt,flex:1}}>{ex.name}</span>
+              <span style={{color:C.pri,fontWeight:700,fontSize:13}}>{eV}kg</span>
+            </div>
+            <div style={{padding:'8px 14px'}}>
+              <div style={{display:'grid',gridTemplateColumns:'24px 1fr 1fr 1fr',gap:8,padding:'4px 0 8px',borderBottom:`1px solid ${C.bg}`,marginBottom:6}}>
+                {['組','重量','次數','訓練量'].map(h=><span key={h} style={{color:C.bdr,fontSize:10,fontWeight:800,letterSpacing:1}}>{h}</span>)}
+              </div>
+              {ex.sets.map((s,si)=>(
+                <div key={si} style={{display:'grid',gridTemplateColumns:'24px 1fr 1fr 1fr',gap:8,padding:'7px 0',borderBottom:`1px solid ${C.bg}`}}>
+                  <span style={{color:C.bdr,fontWeight:700,fontSize:12}}>{si+1}</span>
+                  <span style={{color:C.txt,fontFamily:"'Bebas Neue',sans-serif",fontSize:22}}>{s.weight}<span style={{color:C.bdr,fontSize:11}}> kg</span></span>
+                  <span style={{color:C.txt,fontFamily:"'Bebas Neue',sans-serif",fontSize:22}}>{s.reps}<span style={{color:C.bdr,fontSize:11}}> 次</span></span>
+                  <span style={{color:C.pri,fontWeight:700,fontSize:13,alignSelf:'center'}}>{((parseFloat(s.weight)||0)*(parseInt(s.reps)||0)).toFixed(0)}kg</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+      {showDel&&<DelModal dateKey={dateKey} onConfirm={onDelete} onCancel={()=>setShowDel(false)}/>}
+    </div>
+  );
+}
+
+/* ── History List ────────────────────────────────────────────────── */
+function HList({history,onBack,onDeleteRecord}){
+  const[sel,setSel]=useState(null);
+  const[editMode,setEditMode]=useState(false);
+  const[pendingDel,setPendingDel]=useState(null);
+  const keys=Object.keys(history).sort((a,b)=>b.localeCompare(a));
+
+  if(sel&&history[sel]) return(
+    <HDet dateKey={sel} record={history[sel]} onBack={()=>setSel(null)}
+      onDelete={()=>{onDeleteRecord(sel);setSel(null);}}/>
+  );
+
+  return(
+    <div style={{overflowY:'auto',maxWidth:860,margin:'0 auto',padding:'16px 14px 80px'}}>
+      {/* Header row */}
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:20}}>
+        <div>
+          <button onClick={onBack} className="b-hov"
+            style={{background:'transparent',border:'none',color:C.sub,fontWeight:700,fontSize:13,
+              cursor:'pointer',display:'flex',alignItems:'center',gap:6,minHeight:36,padding:'0'}}>
+            ← 返回訓練
+          </button>
+          <div style={{fontWeight:900,fontSize:24,color:C.txt,marginTop:4}}>訓練歷史 📋</div>
+        </div>
+        {keys.length>0&&(
+          <button onClick={()=>setEditMode(e=>!e)} className="b-hov"
+            style={{background:editMode?C.delL:'transparent',
+              border:`1.5px solid ${editMode?C.del:C.bdr}`,
+              color:editMode?C.del:C.sub,height:36,padding:'0 14px',
+              fontWeight:700,fontSize:13,cursor:'pointer',borderRadius:10,
+              transition:'all .2s',alignSelf:'flex-end'}}>
+            {editMode?'完成':'編輯'}
+          </button>
+        )}
+      </div>
+
+      {keys.length===0&&(
+        <div style={{textAlign:'center',marginTop:80,color:C.bdr}}>
+          <div style={{fontSize:52,marginBottom:16}}>📋</div>
+          <div style={{fontSize:14,fontWeight:700}}>尚無訓練記錄</div>
+          <div style={{fontSize:12,marginTop:6}}>完成訓練後點擊「儲存今日記錄」</div>
+        </div>
+      )}
+
+      {keys.map(k=>{
+        const rec=history[k];
+        const vol=rec.exercises.reduce((s,e)=>s+e.sets.reduce((ss,x)=>ss+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0),0);
+        const sets=rec.exercises.reduce((s,e)=>s+e.sets.length,0);
+        const isT=k===tKey();
+        return(
+          <div key={k} className="fade-in"
+            style={{display:'flex',alignItems:'center',gap:8,marginBottom:10}}>
+            {/* Delete button (edit mode) */}
+            {editMode&&(
+              <button onClick={()=>setPendingDel(k)} className="b-hov"
+                style={{width:32,height:32,flexShrink:0,background:C.del,border:'none',
+                  color:'#fff',borderRadius:50,fontSize:18,cursor:'pointer',
+                  display:'flex',alignItems:'center',justifyContent:'center',fontWeight:900,
+                  boxShadow:`0 2px 8px ${C.del}44`}}>−</button>
+            )}
+            {/* Card */}
+            <div onClick={()=>!editMode&&setSel(k)}
+              className={editMode?'':'c-hov'}
+              style={{flex:1,background:C.card,border:`1.5px solid ${isT?C.pri:C.bdr}`,
+                borderRadius:14,padding:'13px 14px',cursor:editMode?'default':'pointer',
+                display:'flex',alignItems:'center',gap:12,boxShadow:C.sh,
+                opacity:editMode&&pendingDel===k?0.5:1,transition:'opacity .2s'}}>
+              {/* Thumbnails */}
+              <div style={{display:'flex',gap:4,flexShrink:0}}>
+                {rec.exercises.slice(0,3).map((ex,i)=>(
+                  <div key={i} style={{width:32,height:32,background:C.bg,borderRadius:8,
+                    display:'flex',alignItems:'center',justifyContent:'center',border:`1px solid ${C.bdr}`}}>
+                    <MI name={ex.name} size={22}/>
+                  </div>
+                ))}
+                {rec.exercises.length>3&&(
+                  <div style={{width:32,height:32,background:C.priL,borderRadius:8,
+                    display:'flex',alignItems:'center',justifyContent:'center',
+                    color:C.pri,fontSize:11,fontWeight:800,border:`1px solid ${C.pri}`}}>
+                    +{rec.exercises.length-3}
+                  </div>
+                )}
+              </div>
+              {/* Info */}
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:6,marginBottom:2}}>
+                  <span style={{fontWeight:900,fontSize:15,color:C.txt,
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>
+                    {rec.name}
+                  </span>
+                  {isT&&<span style={{fontSize:10,color:C.pri,fontWeight:800,
+                    background:C.priL,padding:'1px 7px',borderRadius:6,flexShrink:0}}>今天</span>}
+                </div>
+                <div style={{color:C.bdr,fontSize:11,fontWeight:600,marginTop:1}}>
+                  {rec.exercises.length} 個動作 · {sets} 組 · {fT(rec.duration||0)}
+                </div>
+              </div>
+              {/* Vol */}
+              <div style={{textAlign:'right',flexShrink:0}}>
+                <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:22,color:C.pri,lineHeight:1}}>{vol}</div>
+                <div style={{color:C.sub,fontSize:11,fontWeight:700}}>kg</div>
+              </div>
+              {!editMode&&<span style={{color:C.bdr,fontSize:20,flexShrink:0}}>›</span>}
+            </div>
+          </div>
+        );
+      })}
+
+      {/* Delete confirm modal */}
+      {pendingDel&&(
+        <DelModal dateKey={pendingDel}
+          onConfirm={()=>{onDeleteRecord(pendingDel);setPendingDel(null);}}
+          onCancel={()=>setPendingDel(null)}/>
+      )}
+    </div>
+  );
+}
+
+/* ── Start Screen ────────────────────────────────────────────────── */
+function StartScreen({onStart,mob}){
+  const days=['日','一','二','三','四','五','六'];
+  const now=new Date();
+  const dateStr=`${now.getMonth()+1}月${now.getDate()}日`;
+  const dayStr=`週${days[now.getDay()]}`;
+  return(
+    <div style={{display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',
+      minHeight:'80vh',padding:`40px ${mob?'24px':'48px'}`,textAlign:'center'}}>
+      {/* Icon */}
+      <div style={{width:mob?96:116,height:mob?96:116,
+        background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+        borderRadius:mob?26:32,display:'flex',alignItems:'center',justifyContent:'center',
+        fontSize:mob?52:64,marginBottom:24,boxShadow:`0 12px 40px ${C.pri}44`}}>💪</div>
+
+      {/* Date as title */}
+      <div style={{fontFamily:"'Bebas Neue',sans-serif",fontSize:mob?42:56,
+        color:C.txt,letterSpacing:3,lineHeight:1,marginBottom:4}}>{dateStr}</div>
+      <div style={{color:C.pri,fontSize:mob?16:20,fontWeight:800,letterSpacing:2,marginBottom:8}}>{dayStr}</div>
+      <div style={{color:C.sub,fontSize:mob?13:15,fontWeight:600,marginBottom:40}}>準備開始今天的訓練</div>
+
+      {/* Start button */}
+      <button onClick={onStart} className="b-hov"
+        style={{width:'100%',maxWidth:320,height:mob?58:66,
+          background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+          border:'none',color:'#fff',fontWeight:900,
+          fontSize:mob?19:23,cursor:'pointer',borderRadius:18,
+          boxShadow:`0 8px 28px ${C.pri}55`,
+          display:'flex',alignItems:'center',justifyContent:'center',gap:12,
+          letterSpacing:1}}>
+        <span style={{fontSize:mob?22:26}}>▶</span> 開始訓練
+      </button>
+
+      <div style={{color:C.bdr,fontSize:12,fontWeight:600,marginTop:20}}>開始後自動計時</div>
+    </div>
+  );
+}
+
+/* ── Shared Header ───────────────────────────────────────────────── */
+function Header({mob,mw,cp,rightSlot,children}){
+  return(
+    <div style={{position:'sticky',top:0,zIndex:200,background:'rgba(255,255,255,0.96)',
+      backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
+      borderBottom:`1px solid ${C.bdr}`,boxShadow:'0 1px 12px rgba(66,99,235,0.07)'}}>
+      <div style={{maxWidth:mw,margin:'0 auto',padding:`0 ${cp}`}}>
+        <div style={{display:'flex',alignItems:'center',gap:mob?8:12,padding:`${mob?'11px':'15px'} 0`}}>
+          <div style={{width:mob?38:46,height:mob?38:46,flexShrink:0,
+            background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+            borderRadius:mob?12:14,display:'flex',alignItems:'center',justifyContent:'center',
+            fontSize:mob?22:28,boxShadow:`0 4px 14px ${C.pri}44`}}>💪</div>
+          {children}
+          {rightSlot}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Main App ────────────────────────────────────────────────────── */
+function App(){
+  const mob=useMob();
+  const[history,setHist]=useState(()=>{try{return JSON.parse(localStorage.getItem(SK)||'{}');}catch{return{};}});
+  const[phase,setPhase]=useState('idle');  // 'idle' | 'active'
+  const[view,setView]=useState('workout');
+  const[exercises,setEx]=useState([]);
+  const[workoutTitle,setWorkoutTitle]=useState('');
+  const[elapsed,setEl]=useState(0);
+  const[timer,setTimer]=useState(null);
+  const[showSave,setShowSave]=useState(false);
+  const iRef=useRef(null);
+  const startRef=useRef(null);
+
+  const stopTicker=()=>{clearInterval(iRef.current);iRef.current=null;};
+  useEffect(()=>()=>stopTicker(),[]);
+
+  const handleStart=()=>{
+    const title=todayTitle();
+    setWorkoutTitle(title);
+    setEx([nEx()]);
+    setEl(0);
+    setPhase('active');
+    startRef.current=Date.now();
+    iRef.current=setInterval(()=>setEl(Math.floor((Date.now()-startRef.current)/1000)),1000);
+  };
+
+  const handleSaveConfirm=()=>{
+    const key=tKey();
+    const next={...history,[key]:{name:workoutTitle,exercises,duration:elapsed,savedAt:Date.now()}};
+    setHist(next);
+    try{localStorage.setItem(SK,JSON.stringify(next));}catch{}
+    stopTicker();
+    setEl(0);setEx([]);setPhase('idle');setView('workout');setShowSave(false);setTimer(null);
+  };
+
+  const deleteRecord=(key)=>{
+    const next={...history};delete next[key];
+    setHist(next);
+    try{localStorage.setItem(SK,JSON.stringify(next));}catch{}
+  };
+
+  const onSetDone=(exId,set)=>{
+    const nd=!set.done;
+    setEx(p=>p.map(e=>e.id===exId?{...e,sets:e.sets.map(s=>s.id===set.id?{...s,done:nd}:s)}:e));
+    if(nd&&parseInt(set.rest)>0)setTimer({seconds:parseInt(set.rest)});
+  };
+
+  const totS=exercises.reduce((s,e)=>s+e.sets.length,0);
+  const doneS=exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
+  const totV=exercises.reduce((s,e)=>s+e.sets.reduce((ss,x)=>ss+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0),0);
+  const pct=totS?(doneS/totS)*100:0;
+  const cp=mob?'14px':'32px';
+  const mw=mob?700:920;
+  const rR=mob?14:18;
+
+  /* ── IDLE ── */
+  if(phase==='idle'){
+    const navBtn=(
+      <button onClick={()=>setView(v=>v==='history'?'workout':'history')} className="b-hov"
+        style={{background:view==='history'?C.pri:'transparent',border:`1.5px solid ${view==='history'?C.pri:C.bdr}`,
+          color:view==='history'?'#fff':C.sub,height:mob?34:40,padding:`0 ${mob?'11px':'18px'}`,
+          fontWeight:700,fontSize:mob?13:15,cursor:'pointer',borderRadius:9,transition:'all .2s'}}>
+        {view==='history'?'← 訓練':'歷史'}
+      </button>
+    );
+    return(
+      <div style={{minHeight:'100vh',background:C.bg}}>
+        <Header mob={mob} mw={mw} cp={cp} rightSlot={navBtn}>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:900,fontSize:mob?17:21,color:C.txt}}>健身日誌</div>
+            <div style={{color:C.bdr,fontSize:mob?11:13,fontWeight:600}}>選擇「開始訓練」來計時</div>
+          </div>
+        </Header>
+        {view==='history'
+          ?<HList history={history} onBack={()=>setView('workout')} onDeleteRecord={deleteRecord}/>
+          :<StartScreen onStart={handleStart} mob={mob}/>}
+      </div>
+    );
+  }
+
+  /* ── ACTIVE ── */
+  const navBtns=(
+    <div style={{display:'flex',gap:mob?4:6}}>
+      {[['workout','訓練'],['history','歷史']].map(([v,l])=>(
+        <button key={v} onClick={()=>setView(v)} className="b-hov"
+          style={{background:view===v?C.pri:'transparent',border:`1.5px solid ${view===v?C.pri:C.bdr}`,
+            color:view===v?'#fff':C.sub,height:mob?34:40,padding:`0 ${mob?'11px':'18px'}`,
+            fontWeight:700,fontSize:mob?13:15,cursor:'pointer',borderRadius:9,transition:'all .2s'}}>{l}</button>
+      ))}
+    </div>
+  );
+
+  return(
+    <div style={{minHeight:'100vh',background:C.bg}}>
+      {/* Header */}
+      <div style={{position:'sticky',top:0,zIndex:200,background:'rgba(255,255,255,0.96)',
+        backdropFilter:'blur(14px)',WebkitBackdropFilter:'blur(14px)',
+        borderBottom:`1px solid ${C.bdr}`,boxShadow:'0 1px 12px rgba(66,99,235,0.07)'}}>
+        <div style={{maxWidth:mw,margin:'0 auto',padding:`0 ${cp}`}}>
+          <div style={{display:'flex',alignItems:'center',gap:mob?8:12,padding:`${mob?'11px':'15px'} 0`}}>
+            <div style={{width:mob?38:46,height:mob?38:46,flexShrink:0,
+              background:`linear-gradient(135deg,${C.pri},${C.pri2})`,
+              borderRadius:mob?12:14,display:'flex',alignItems:'center',justifyContent:'center',
+              fontSize:mob?22:28,boxShadow:`0 4px 14px ${C.pri}44`}}>💪</div>
+            {/* Title + timer */}
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontWeight:900,fontSize:mob?16:20,color:C.txt,
+                overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{workoutTitle}</div>
+              <div style={{display:'flex',alignItems:'center',gap:5,marginTop:1}}>
+                <span style={{width:6,height:6,borderRadius:3,background:C.ok,
+                  display:'inline-block',flexShrink:0,boxShadow:`0 0 0 2px ${C.okL}`}}/>
+                <span style={{color:C.ok,fontFamily:"'Bebas Neue',sans-serif",
+                  fontSize:mob?15:18,letterSpacing:1,lineHeight:1}}>{fT(elapsed)}</span>
+              </div>
+            </div>
+            {/* Ring */}
+            <svg width={mob?36:44} height={mob?36:44} style={{transform:'rotate(-90deg)',flexShrink:0}}>
+              <circle cx={mob?18:22} cy={mob?18:22} r={rR} fill="none" stroke={C.bdr} strokeWidth="3.5"/>
+              <circle cx={mob?18:22} cy={mob?18:22} r={rR} fill="none" stroke={C.pri} strokeWidth="3.5"
+                strokeDasharray={`${(pct/100)*(2*Math.PI*rR).toFixed(2)} ${(2*Math.PI*rR).toFixed(2)}`}
+                strokeLinecap="round" style={{transition:'stroke-dasharray .5s ease'}}/>
+            </svg>
+            {navBtns}
+          </div>
+        </div>
+        {/* Stats strip */}
+        {view==='workout'&&(
+          <div style={{background:C.priL,borderTop:`1px solid ${C.bdr}`}}>
+            <div style={{maxWidth:mw,margin:'0 auto',display:'flex',
+              padding:`${mob?'7px':'9px'} ${cp}`,gap:mob?18:40}}>
+              {[['動作',exercises.length],['總組數',totS],['完成',`${doneS}/${totS}`],['訓練量',totV?`${totV}kg`:'—']].map(([l,v])=>(
+                <div key={l}>
+                  <div style={{color:C.pri,fontFamily:"'Bebas Neue',sans-serif",fontSize:mob?21:28,lineHeight:1}}>{v}</div>
+                  <div style={{color:C.pri2,fontSize:mob?9:10,fontWeight:800,letterSpacing:1.5,textTransform:'uppercase'}}>{l}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Content */}
+      {view==='history'
+        ?<HList history={history} onBack={()=>setView('workout')} onDeleteRecord={deleteRecord}/>
+        :(
+          <div style={{maxWidth:mw,margin:'0 auto',padding:`16px ${cp} 100px`}}>
+            {mob?(
+              exercises.map(ex=>(
+                <ExCard key={ex.id} ex={ex} mob={true}
+                  onUpdate={u=>setEx(p=>p.map(e=>e.id===u.id?u:e))}
+                  onDelete={()=>setEx(p=>p.filter(e=>e.id!==ex.id))}
+                  onSetDone={onSetDone}/>
+              ))
+            ):(
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18,marginBottom:4}}>
+                {exercises.map(ex=>(
+                  <ExCard key={ex.id} ex={ex} mob={false}
+                    onUpdate={u=>setEx(p=>p.map(e=>e.id===u.id?u:e))}
+                    onDelete={()=>setEx(p=>p.filter(e=>e.id!==ex.id))}
+                    onSetDone={onSetDone}/>
+                ))}
+              </div>
+            )}
+            <button onClick={()=>setEx(p=>[...p,nEx()])} className="b-hov"
+              style={{width:'100%',background:C.card,border:`2px dashed ${C.bdr}`,
+                color:C.sub,height:mob?50:58,fontWeight:800,fontSize:mob?14:17,
+                cursor:'pointer',borderRadius:14,marginBottom:10,boxShadow:C.sh}}>
+              ＋ 新增動作
+            </button>
+            <button onClick={()=>setShowSave(true)} className="b-hov"
+              style={{width:'100%',border:'none',height:mob?50:58,
+                background:C.ok,color:'#fff',fontWeight:800,fontSize:mob?14:17,
+                cursor:'pointer',borderRadius:14,boxShadow:`0 4px 16px ${C.ok}55`}}>
+              💾 儲存今日訓練記錄
+            </button>
+          </div>
+        )
+      }
+
+      {timer&&<RestTimer seconds={timer.seconds} onDone={()=>setTimer(null)} onSkip={()=>setTimer(null)}/>}
+      {showSave&&<SaveModal title={workoutTitle} onConfirm={handleSaveConfirm} onCancel={()=>setShowSave(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
