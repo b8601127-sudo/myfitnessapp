@@ -214,7 +214,7 @@ function RestTimer({seconds,onDone,onSkip}){
 
 /* ── Stepper ─────────────────────────────────────────────────────── */
 function Stepper({label,value,onChange,step=1,unit='',color=C.txt,mob=true}){
-  const bs=mob?38:46,iw=mob?52:64,fs=mob?28:34;
+  const bs=mob?30:46,iw=mob?52:64,fs=mob?28:34;
   const dec=()=>onChange(Math.round(Math.max(0,parseFloat(value)-step)*100)/100);
   const inc=()=>onChange(Math.round((parseFloat(value)+step)*100)/100);
   const Btn=({fn,ch})=>(
