@@ -459,13 +459,16 @@ function HDet({dateKey,record,onBack}){
           <div key={ei} style={{background:C.card,borderRadius:14,marginBottom:12,
             overflow:'hidden',boxShadow:C.sh}}>
             <div style={{padding:'12px 14px',display:'flex',alignItems:'center',
-              gap:10,borderBottom:`1px solid ${C.bg}`}}>
-              <div style={{width:38,height:38,background:C.bg,borderRadius:9,flexShrink:0,
-                display:'flex',alignItems:'center',justifyContent:'center'}}>
-                <MI name={ex.name} size={28}/>
+              gap:12,borderBottom:`1px solid ${C.bg}`}}>
+              <div style={{width:'48%',maxWidth:240,aspectRatio:'1',background:C.bg,
+                borderRadius:12,flexShrink:0,display:'flex',alignItems:'center',
+                justifyContent:'center',overflow:'hidden',border:`1px solid ${C.bdr}`}}>
+                <MI name={ex.name} size={180}/>
               </div>
-              <span style={{fontWeight:800,fontSize:15,color:C.txt,flex:1}}>{ex.name}</span>
-              <span style={{color:C.pri,fontWeight:700,fontSize:13}}>{eV}kg</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontWeight:800,fontSize:17,color:C.txt,marginBottom:6}}>{ex.name}</div>
+                <div style={{color:C.pri,fontWeight:700,fontSize:14}}>{eV}kg</div>
+              </div>
             </div>
             <div style={{padding:'8px 14px'}}>
               <div style={{display:'grid',gridTemplateColumns:'24px 1fr 1fr 1fr',gap:8,
@@ -670,13 +673,12 @@ function App(){
     setEx(p=>p.map(e=>{
       if(e.id!==exId)return e;
       const setIdx=e.sets.findIndex(s=>s.id===set.id);
-      const isFirstSet=setIdx===0;
+      // Mark this set done/undone
       let newSets=e.sets.map(s=>s.id===set.id?{...s,done:nd}:s);
-
-      // When first set of an exercise is checked, copy weight/reps/rest to all remaining sets
-      if(nd && isFirstSet && newSets.length>1){
+      // When checking done: copy weight & reps into all subsequent uncompleted sets
+      if(nd && setIdx < newSets.length-1){
         newSets=newSets.map((s,i)=>
-          i===0 ? s : {...s, weight:set.weight, reps:set.reps, rest:set.rest}
+          i>setIdx && !s.done ? {...s, weight:set.weight, reps:set.reps} : s
         );
       }
       return{...e,sets:newSets};
@@ -685,7 +687,35 @@ function App(){
     if(nd&&parseInt(set.rest)>0)setTimer({seconds:parseInt(set.rest)});
   };
 
-  const totS=exercises.reduce((s,e)=>s+e.sets.length,0);
+  // Look up most recent weight & reps for a named exercise across all history records
+  const getLastSets=(name)=>{
+    if(!name)return null;
+    const keys=Object.keys(history).sort((a,b)=>b.localeCompare(a));
+    for(const k of keys){
+      const rec=history[k];
+      const found=(rec.exercises||[]).find(e=>e.name===name);
+      if(found && found.sets && found.sets.length>0) return found.sets;
+    }
+    return null;
+  };
+
+  // When an exercise name changes (preset picked or typed), prefill sets from last history
+  const handleExUpdate=(updated, prev)=>{
+    let ex=updated;
+    if(updated.name && updated.name!==prev.name){
+      const lastSets=getLastSets(updated.name);
+      if(lastSets){
+        // Carry over weight & reps from last session, keep current set count structure
+        ex={...updated, sets: updated.sets.map((s,i)=>{
+          const ref=lastSets[Math.min(i,lastSets.length-1)];
+          return ref ? {...s, weight:ref.weight, reps:ref.reps} : s;
+        })};
+      }
+    }
+    setEx(p=>p.map(e=>e.id===ex.id?ex:e));
+  };
+
+
   const doneS=exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
   const totV=exercises.reduce((s,e)=>
     s+e.sets.reduce((ss,x)=>ss+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0),0);
@@ -819,7 +849,7 @@ function App(){
           {mob?(
             exercises.map(ex=>(
               <ExCard key={ex.id} ex={ex} mob={true}
-                onUpdate={u=>setEx(p=>p.map(e=>e.id===u.id?u:e))}
+                onUpdate={u=>handleExUpdate(u,ex)}
                 onDelete={()=>setEx(p=>p.filter(e=>e.id!==ex.id))}
                 onSetDone={onSetDone}/>
             ))
@@ -827,14 +857,17 @@ function App(){
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:18,marginBottom:4}}>
               {exercises.map(ex=>(
                 <ExCard key={ex.id} ex={ex} mob={false}
-                  onUpdate={u=>setEx(p=>p.map(e=>e.id===u.id?u:e))}
+                  onUpdate={u=>handleExUpdate(u,ex)}
                   onDelete={()=>setEx(p=>p.filter(e=>e.id!==ex.id))}
                   onSetDone={onSetDone}/>
               ))}
             </div>
           )}
 
-          <button onClick={()=>setEx(p=>[...p,nEx()])} className="b-hov"
+          <button onClick={()=>{
+            // Find most recent completed sets for a new (unnamed) exercise — resolved on name selection
+            setEx(p=>[...p,nEx()]);
+          }} className="b-hov"
             style={{width:'100%',background:C.card,border:`2px dashed ${C.bdr}`,
               color:C.sub,height:mob?50:58,fontWeight:800,fontSize:mob?14:17,
               cursor:'pointer',borderRadius:14,marginBottom:10,boxShadow:C.sh}}>
