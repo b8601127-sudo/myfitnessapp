@@ -727,6 +727,7 @@ function App(){
   const doneS=exercises.reduce((s,e)=>s+e.sets.filter(x=>x.done).length,0);
   const totV=exercises.reduce((s,e)=>
     s+e.sets.reduce((ss,x)=>ss+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0),0);
+  const totS = exercises.reduce((s,e)=>s+e.sets.length,0);
   const pct=totS?(doneS/totS)*100:0;
   const cp=mob?'14px':'32px';
   const mw=mob?700:920;
