@@ -455,20 +455,28 @@ function HDet({dateKey,record,onBack}){
       </div>
       {record.exercises.map((ex,ei)=>{
         const eV=ex.sets.reduce((s,x)=>s+(parseFloat(x.weight)||0)*(parseInt(x.reps)||0),0);
+        const imgSrc=IMGS[ex.name];
         return(
-          <div key={ei} style={{background:C.card,borderRadius:14,marginBottom:12,
+          <div key={ei} style={{background:C.card,borderRadius:14,marginBottom:16,
             overflow:'hidden',boxShadow:C.sh}}>
+            {/* Full-width image: 50vw wide */}
+            <div style={{width:'100%',background:C.bg,
+              display:'flex',alignItems:'center',justifyContent:'center',
+              borderBottom:`1px solid ${C.bdr}`,padding:'16px 0'}}>
+              {imgSrc
+                ? <img src={imgSrc} alt={ex.name} style={{
+                    width:'50%',height:'auto',objectFit:'contain',display:'block'}}/>
+                : <svg viewBox="0 0 60 92" style={{width:'25%',opacity:.25}}>
+                    <ellipse cx="30" cy="8.5" rx="7" ry="7.5" fill={C.sub}/>
+                    <path d="M16,20 C10,26 10,44 10,52 L50,52 C50,44 50,26 44,20 Z" fill={C.sub}/>
+                  </svg>
+              }
+            </div>
+            {/* Name + volume row */}
             <div style={{padding:'12px 14px',display:'flex',alignItems:'center',
-              gap:12,borderBottom:`1px solid ${C.bg}`}}>
-              <div style={{width:'48%',maxWidth:240,aspectRatio:'1',background:C.bg,
-                borderRadius:12,flexShrink:0,display:'flex',alignItems:'center',
-                justifyContent:'center',overflow:'hidden',border:`1px solid ${C.bdr}`}}>
-                <MI name={ex.name} size={180}/>
-              </div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontWeight:800,fontSize:17,color:C.txt,marginBottom:6}}>{ex.name}</div>
-                <div style={{color:C.pri,fontWeight:700,fontSize:14}}>{eV}kg</div>
-              </div>
+              justifyContent:'space-between',borderBottom:`1px solid ${C.bg}`}}>
+              <div style={{fontWeight:800,fontSize:18,color:C.txt}}>{ex.name}</div>
+              <div style={{color:C.pri,fontWeight:700,fontSize:14}}>{eV}kg</div>
             </div>
             <div style={{padding:'8px 14px'}}>
               <div style={{display:'grid',gridTemplateColumns:'24px 1fr 1fr 1fr',gap:8,
